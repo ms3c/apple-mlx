@@ -82,26 +82,78 @@ brew install cmake
 rustup toolchain install stable
 ```
 
+## Recommended Setup
+
+The easiest path is to let the repo `Makefile` install MLX into a local prefix and wire the environment for you.
+
+Install upstream MLX into `.local/apple-mlx`:
+
+```bash
+make install-mlx
+```
+
+Then build and run this crate:
+
+```bash
+make build
+make test
+make run
+```
+
+Run a specific example:
+
+```bash
+make run-example EXAMPLE=example_graph
+```
+
+## Metal Toolchain Setup
+
+This repo includes helper scripts for the Metal compiler toolchain:
+
+Install or repair the toolchain:
+
+```bash
+./scripts/install-metal-toolchain.sh
+```
+
+Verify the toolchain:
+
+```bash
+./scripts/check-metal-toolchain.sh
+```
+
+The expected verification command is:
+
+```bash
+xcrun -sdk macosx metal -v
+```
+
+If that command fails, `build.rs` will print:
+
+```text
+Metal toolchain not available; building MLX with CPU backend only
+```
+
+If it succeeds, the crate can build the GPU-capable path.
+
 ## Installing MLX for This Crate
 
 This crate expects MLX to be installed somewhere CMake can find it.
 
-Two common options:
-
-1. Install MLX into a prefix and export `CMAKE_PREFIX_PATH`.
-2. Point `MLX_DIR` directly at `.../share/cmake/MLX`.
-
-Example with a local install prefix:
+The default `Makefile` flow installs MLX here:
 
 ```bash
-export CMAKE_PREFIX_PATH="$(pwd)/../apple-mlx-prefix"
+$(pwd)/.local/apple-mlx
 ```
 
-Example with a direct MLX config path:
+and exports:
 
 ```bash
-export MLX_DIR="$(pwd)/../apple-mlx-prefix/share/cmake/MLX"
+CMAKE_PREFIX_PATH="$(pwd)/.local/apple-mlx"
+MLX_DIR="$(pwd)/.local/apple-mlx/share/cmake/MLX"
 ```
+
+If you do not use the `Makefile`, you must provide those paths yourself.
 
 ## Build and Run
 
@@ -114,25 +166,25 @@ ls Cargo.toml build.rs src/lib.rs
 Build:
 
 ```bash
-CMAKE_PREFIX_PATH="$(pwd)/../apple-mlx-prefix" cargo build
+make build
 ```
 
 Run the binary:
 
 ```bash
-CMAKE_PREFIX_PATH="$(pwd)/../apple-mlx-prefix" cargo run
+make run
 ```
 
 Run the example:
 
 ```bash
-CMAKE_PREFIX_PATH="$(pwd)/../apple-mlx-prefix" cargo run --example complex_matmul
+make run-complex
 ```
 
 Run tests:
 
 ```bash
-CMAKE_PREFIX_PATH="$(pwd)/../apple-mlx-prefix" cargo test
+make test
 ```
 
 ## Verified CPU Run
@@ -161,15 +213,18 @@ Max absolute error vs CPU reference: 0.000000
 To run on GPU, install the Metal toolchain first:
 
 ```bash
-xcodebuild -downloadComponent MetalToolchain
-xcrun -sdk macosx metal -v
+./scripts/install-metal-toolchain.sh
+./scripts/check-metal-toolchain.sh
 ```
 
 Then rebuild and run with the same MLX prefix:
 
 ```bash
-cargo clean
-CMAKE_PREFIX_PATH="$(pwd)/../apple-mlx-prefix" cargo run
+make install-metal
+make check-metal
+make clean
+make build
+make run
 ```
 
 If GPU support is available, the program should print:
