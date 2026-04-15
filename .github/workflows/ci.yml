@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install CMake
+        run: brew install cmake
+
+      - name: Build And Install MLX
+        run: |
+          git clone --depth 1 --branch v0.31.1 https://github.com/ml-explore/mlx.git "$RUNNER_TEMP/mlx"
+          cmake -S "$RUNNER_TEMP/mlx" -B "$RUNNER_TEMP/mlx/build" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DMLX_BUILD_TESTS=OFF \
+            -DMLX_BUILD_EXAMPLES=OFF \
+            -DMLX_BUILD_BENCHMARKS=OFF \
+            -DMLX_BUILD_PYTHON_BINDINGS=OFF \
+            -DMLX_BUILD_METAL=OFF
+          cmake --build "$RUNNER_TEMP/mlx/build" -j2
+          cmake --install "$RUNNER_TEMP/mlx/build" --prefix "$RUNNER_TEMP/mlx-prefix"
+
+      - name: Format
+        run: cargo fmt --check
+
+      - name: Test
+        env:
+          CMAKE_PREFIX_PATH: ${{ runner.temp }}/mlx-prefix
+        run: cargo test
+
+      - name: Package
+        env:
+          CMAKE_PREFIX_PATH: ${{ runner.temp }}/mlx-prefix
+        run: cargo package --allow-dirty --no-verify
