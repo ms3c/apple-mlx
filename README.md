@@ -1,70 +1,35 @@
 # apple-mlx
 
-Rust bindings for Apple MLX through the official `mlx-c` C API.
+Rust bindings for Apple MLX via the official `mlx-c` C API.
 
-This crate currently provides:
+This crate provides:
 
-- `apple_mlx::raw`: full generated raw bindings for `mlx-c`
+- `apple_mlx::raw`: generated raw bindings for the full `mlx-c` surface
 - a thin safe layer for `Device`, `Stream`, `Array`, and `Complex32`
-- a working complex matrix multiplication example validated against a CPU reference
+- runnable examples, including complex matrix multiplication and graph export
 
-## Status
+## What This Repo Does
 
-This crate is now library-usable and packageable for crates.io.
+This repository vendors `mlx-c`, generates Rust bindings in `build.rs`, and links them against an installed MLX build.
 
-The important build constraint is explicit:
+The build model is explicit:
 
 - `mlx-c` is vendored in this crate
-- MLX itself is not fetched at build time
-- you must provide an installed MLX package and point CMake at it with `CMAKE_PREFIX_PATH` or `MLX_DIR`
+- MLX itself is installed locally by the repo `Makefile`
+- no hidden MLX fetch happens during `cargo build`
 
-That keeps the crate build reproducible and avoids hidden network fetches during `cargo build`.
-
-## Project Layout
-
-- `src/lib.rs`: generated raw bindings export plus thin safe wrappers
-- `src/main.rs`: small binary using the library
-- `examples/complex_matmul.rs`: example entrypoint for the same demo
-- `build.rs`: generates bindings and builds vendored `mlx-c` against an installed MLX
-- `vendor/mlx-c`: vendored upstream `mlx-c` source
-
-## Library Surface
-
-Raw bindings:
-
-```rust
-use apple_mlx::raw;
-```
-
-Thin safe API:
-
-```rust
-use apple_mlx::{Array, Complex32, Device, Stream};
-```
-
-Demo entrypoint:
-
-```rust
-apple_mlx::demo_complex_matmul()?;
-```
-
-## How the Build Works
-
-`build.rs` does three things:
-
-1. Generates Rust bindings from `vendor/mlx-c/mlx/c/mlx.h` using `bindgen`.
-2. Builds vendored `mlx-c` with CMake.
-3. Links it against an already-installed MLX package discovered through:
-   - `CMAKE_PREFIX_PATH`
-   - or `MLX_DIR`
-
-Metal support is enabled only if this succeeds:
+## Clone
 
 ```bash
-xcrun -sdk macosx metal -v
+git clone https://github.com/ms3c/apple-mlx.git
+cd apple-mlx
 ```
 
-If that command fails, the build falls back to CPU-only MLX usage.
+All commands below assume you are at the repo root:
+
+```bash
+ls Cargo.toml Makefile build.rs src/lib.rs
+```
 
 ## Requirements
 
@@ -72,9 +37,8 @@ If that command fails, the build falls back to CPU-only MLX usage.
 - Rust toolchain
 - Xcode command line tools
 - CMake
-- an installed MLX package
 
-Install the basic tools if needed:
+Install the basics if needed:
 
 ```bash
 xcode-select --install
@@ -82,166 +46,245 @@ brew install cmake
 rustup toolchain install stable
 ```
 
-## Recommended Setup
+## CPU Build From Scratch
 
-The easiest path is to let the repo `Makefile` install MLX into a local prefix and wire the environment for you.
+This is the shortest fully reproducible path.
 
-Install upstream MLX into `.local/apple-mlx`:
+1. Build and install MLX into the repo-local prefix:
 
 ```bash
 make install-mlx
 ```
 
-Then build and run this crate:
+2. Build the Rust crate:
 
 ```bash
 make build
+```
+
+3. Run tests:
+
+```bash
 make test
+```
+
+4. Run the main demo:
+
+```bash
 make run
 ```
 
-Run a specific example:
+5. Run a specific example:
 
 ```bash
 make run-example EXAMPLE=example_graph
 ```
 
-## Metal Toolchain Setup
-
-This repo includes helper scripts for the Metal compiler toolchain:
-
-Install or repair the toolchain:
-
-```bash
-./scripts/install-metal-toolchain.sh
-```
-
-Verify the toolchain:
-
-```bash
-./scripts/check-metal-toolchain.sh
-```
-
-The expected verification command is:
-
-```bash
-xcrun -sdk macosx metal -v
-```
-
-If that command fails, `build.rs` will print:
-
-```text
-Metal toolchain not available; building MLX with CPU backend only
-```
-
-If it succeeds, the crate can build the GPU-capable path.
-
-## Installing MLX for This Crate
-
-This crate expects MLX to be installed somewhere CMake can find it.
-
-The default `Makefile` flow installs MLX here:
+The local MLX install prefix used by the repo is:
 
 ```bash
 $(pwd)/.local/apple-mlx
 ```
 
-and exports:
+The `Makefile` exports these automatically:
 
 ```bash
 CMAKE_PREFIX_PATH="$(pwd)/.local/apple-mlx"
 MLX_DIR="$(pwd)/.local/apple-mlx/share/cmake/MLX"
 ```
 
-If you do not use the `Makefile`, you must provide those paths yourself.
+## GPU Build With Metal
 
-## Build and Run
+If the Metal compiler is available, the repo will build MLX with Metal enabled and the GPU examples will run against the GPU backend.
 
-All commands below assume you are in the crate root:
-
-```bash
-ls Cargo.toml build.rs src/lib.rs
-```
-
-Build:
-
-```bash
-make build
-```
-
-Run the binary:
-
-```bash
-make run
-```
-
-Run the example:
-
-```bash
-make run-complex
-```
-
-Run tests:
-
-```bash
-make test
-```
-
-## Verified CPU Run
-
-This environment was verified successfully in CPU mode. The Metal toolchain was not installed, so the crate built and ran with CPU fallback.
-
-Observed output:
-
-```text
-Using Apple MLX on CPU device 0 (Apple M2 Pro)
-Output shape: [2, 2]
-Left matrix:
-  1.000+2.000i  3.000-1.000i
-  -2.000+0.500i  0.000+4.000i
-Right matrix:
-  0.500-1.000i  2.000+0.000i
-  -3.000+1.500i  1.000-2.000i
-MLX product:
-  -5.000+7.500i  3.000-3.000i
-  -6.500-9.750i  4.000+5.000i
-Max absolute error vs CPU reference: 0.000000
-```
-
-## GPU Reproduction
-
-To run on GPU, install the Metal toolchain first:
+Install the Metal toolchain:
 
 ```bash
 ./scripts/install-metal-toolchain.sh
-./scripts/check-metal-toolchain.sh
 ```
 
-Then rebuild and run with the same MLX prefix:
+Verify it:
 
 ```bash
-make install-metal
-make check-metal
-make clean
-make build
-make run
+./scripts/check-metal-toolchain.sh
+xcrun -sdk macosx metal -v
 ```
 
-If GPU support is available, the program should print:
+Then rebuild with Metal enabled:
 
-```text
-Using Apple MLX on GPU device 0 (...)
+```bash
+make clean-mlx
+make install-mlx
+make build
+```
+
+Run the Metal example:
+
+```bash
+make run-example EXAMPLE=example_metal_kernel
+```
+
+The `Makefile` records whether MLX was built with `MLX_BUILD_METAL=ON` or `OFF`. If that mode changes, `make build`, `make run`, and `make run-example` will rebuild the local MLX install automatically.
+
+## Examples
+
+Run the core examples:
+
+```bash
+make run-complex
+make run-example EXAMPLE=example
+make run-example EXAMPLE=example_graph
+make run-example EXAMPLE=example_export
+make run-example EXAMPLE=example_grad
+make run-example EXAMPLE=example_closure
+make run-example EXAMPLE=example_safe_tensors
+make run-example EXAMPLE=example_gguf
+```
+
+Run the GPU/Metal example:
+
+```bash
+make run-example EXAMPLE=example_metal_kernel
+```
+
+Check all examples compile:
+
+```bash
+make examples-check
+```
+
+## How The FFI Build Works
+
+`build.rs` does three jobs:
+
+1. runs `bindgen` on `vendor/mlx-c/mlx/c/mlx.h`
+2. builds vendored `mlx-c` with CMake
+3. links it against the installed MLX package exposed through `CMAKE_PREFIX_PATH` and `MLX_DIR`
+
+Key repo files:
+
+- `build.rs`
+- `src/lib.rs`
+- `src/main.rs`
+- `examples/`
+- `vendor/mlx-c/`
+- `Makefile`
+
+## Integrating Into Another Rust Project
+
+There are two parts:
+
+1. add the Rust crate
+2. make sure your project can find an installed MLX prefix at build time
+
+### From crates.io
+
+Add this to your `Cargo.toml`:
+
+```toml
+[dependencies]
+apple-mlx = "0.1"
+```
+
+Use it from Rust:
+
+```rust
+use apple_mlx::raw;
+use apple_mlx::{Array, Complex32, Device, Stream};
+```
+
+### From a local checkout
+
+If you want to work against this repo directly:
+
+```toml
+[dependencies]
+apple-mlx = { path = "../apple-mlx" }
+```
+
+### Build Environment In The Consumer Project
+
+Your consuming project must expose the MLX install location when Cargo builds `apple-mlx`.
+
+If you installed MLX with this repo’s `Makefile`, export:
+
+```bash
+export CMAKE_PREFIX_PATH="/path/to/apple-mlx/.local/apple-mlx"
+export MLX_DIR="/path/to/apple-mlx/.local/apple-mlx/share/cmake/MLX"
+```
+
+Then build your own project normally:
+
+```bash
+cargo build
+```
+
+### Consumer Project Makefile Example
+
+If you want the same workflow in another repo:
+
+```make
+APPLE_MLX_PREFIX ?= /absolute/path/to/apple-mlx/.local/apple-mlx
+
+export CMAKE_PREFIX_PATH := $(APPLE_MLX_PREFIX)
+export MLX_DIR := $(APPLE_MLX_PREFIX)/share/cmake/MLX
+
+build:
+	cargo build
+
+run:
+	cargo run
+```
+
+## Minimal Consumer Example
+
+```rust
+use apple_mlx::demo_complex_matmul;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    demo_complex_matmul()?;
+    Ok(())
+}
+```
+
+Or use the raw bindings directly:
+
+```rust
+use apple_mlx::raw;
+
+fn main() {
+    unsafe {
+        let cpu = raw::mlx_device_new(raw::mlx_device_type__MLX_CPU, 0);
+        let _ = raw::mlx_device_free(cpu);
+    }
+}
+```
+
+## Verified Runs
+
+Verified CPU flow:
+
+```bash
+make install-mlx
+make run-example EXAMPLE=example_graph
+```
+
+Verified GPU flow:
+
+```bash
+./scripts/install-metal-toolchain.sh
+make run-example EXAMPLE=example_metal_kernel
 ```
 
 ## Packaging Notes
 
-- package name: `apple-mlx`
-- crate docs target: `docs.rs/apple-mlx`
-- docs.rs uses the `docs-only` feature to skip native library compilation during documentation builds
-- no build-time network fetches are required by this crate
+- crate name: `apple-mlx`
+- docs: `https://docs.rs/apple-mlx`
+- repo: `https://github.com/ms3c/apple-mlx`
+- docs.rs uses the `docs-only` feature to avoid native compilation during documentation builds
 
 ## Current Limits
 
-- the safe wrapper only covers a small subset of MLX so far
-- the raw `mlx-c` binding surface is available, but ergonomic Rust wrappers still need to be expanded module by module
-- GPU execution was designed for and wired in, but only CPU execution was verified in this environment
+- the raw binding surface is broad, but the safe Rust wrapper is still thin
+- MLX must be installed on the machine building the crate
+- this is currently a macOS Apple-silicon-focused crate

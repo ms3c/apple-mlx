@@ -10,6 +10,9 @@ fn main() -> Result<()> {
     unsafe {
         let stream = raw::mlx_default_gpu_stream_new();
         let mut input = raw::mlx_array_new();
+        let empty_key = raw::mlx_array {
+            ctx: std::ptr::null_mut(),
+        };
         let dims = [4, 16];
         check(
             raw::mlx_random_normal(
@@ -19,7 +22,7 @@ fn main() -> Result<()> {
                 raw::mlx_dtype__MLX_FLOAT32,
                 0.0,
                 1.0,
-                raw::mlx_array_empty,
+                empty_key,
                 stream,
             ),
             "mlx_random_normal",

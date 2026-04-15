@@ -16,6 +16,7 @@ fn main() {
     println!("cargo:rerun-if-changed={}", source_dir.display());
     println!("cargo:rerun-if-env-changed=CMAKE_PREFIX_PATH");
     println!("cargo:rerun-if-env-changed=MLX_DIR");
+    println!("cargo:rerun-if-env-changed=MLX_BUILD_METAL");
     println!("cargo:rerun-if-env-changed=DOCS_RS");
 
     generate_bindings(&source_dir, &out_dir);
@@ -96,6 +97,19 @@ fn generate_bindings(source_dir: &Path, out_dir: &Path) {
 }
 
 fn has_metal_toolchain() -> bool {
+    if let Some(value) = env::var_os("MLX_BUILD_METAL") {
+        let value = value.to_string_lossy();
+        if value.eq_ignore_ascii_case("on") || value == "1" || value.eq_ignore_ascii_case("true") {
+            return true;
+        }
+        if value.eq_ignore_ascii_case("off")
+            || value == "0"
+            || value.eq_ignore_ascii_case("false")
+        {
+            return false;
+        }
+    }
+
     Command::new("xcrun")
         .args(["-sdk", "macosx", "metal", "-v"])
         .output()
