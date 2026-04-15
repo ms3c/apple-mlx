@@ -102,9 +102,7 @@ fn has_metal_toolchain() -> bool {
         if value.eq_ignore_ascii_case("on") || value == "1" || value.eq_ignore_ascii_case("true") {
             return true;
         }
-        if value.eq_ignore_ascii_case("off")
-            || value == "0"
-            || value.eq_ignore_ascii_case("false")
+        if value.eq_ignore_ascii_case("off") || value == "0" || value.eq_ignore_ascii_case("false")
         {
             return false;
         }

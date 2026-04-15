@@ -1,6 +1,6 @@
 [package]
 name = "apple-mlx"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Rust bindings and safe wrappers for Apple MLX via the official mlx-c API"
 license = "MIT"
